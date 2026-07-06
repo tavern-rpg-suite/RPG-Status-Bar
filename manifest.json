@@ -1,0 +1,9 @@
+{
+    "display_name": "RPG Equipment & Durability",
+    "loading_order": 113,
+    "js": "index.js",
+    "css": "style.css",
+    "author": "Arkana8",
+    "version": "1.9.4",
+    "homePage": "https://github.com/tavern-rpg-suite/RPG-Equipment-Durability"
+}
