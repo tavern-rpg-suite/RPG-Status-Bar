@@ -1,51 +1,67 @@
-# RPG Equipment & Durability
+# RPG Status Bar
 
-A SillyTavern extension that gives the player a worn **outfit** across six slots, each with a **durability** bar that wears down as the story goes on and eventually **breaks**. The current outfit (and its condition) is quietly injected into the prompt each turn, so the character can *see* what you're wearing — a torn coat, broken boots, a drawn sword.
+A SillyTavern extension that shows an **inline status bar under each character message** — health, mana, stamina, mood, trust, arousal… whatever stats you define. An AI Game Master reads the recent story and updates the values periodically, with animated bars, trend arrows, critical-state warnings, and a one-line summary that can be injected back into the prompt so the model stays aware of the character's condition.
 
-> Design principle: **the extension is the source of truth, the chat is just the narrator.** Durability is computed by the extension on a fixed schedule — the model never does the math, it only reads a short state note. Part of the RPG suite: it exposes `window.RPG.equipment` (RPG Vitals reads it for armor/attack) and can pull repair materials from `window.RPG.inventory`.
-
-**Version 1.9.4**
+**Version 1.3.0**
 
 ---
 
 ## ✨ Features
 
-- 🧥 **Six slots** — Head · Top · Bottom · Boots · Accessory · Weapon — on a "case-file / dossier" card.
-- 📉 **Durability** — each piece has a bar (current / max) and a state word: *good → worn → tattered → BROKEN*. A broken item stays equipped (shown as damaged) so the scene can react.
-- ⚙️ **Deterministic decay** — every *N* messages each piece loses durability; at 0 it breaks. No AI guesswork.
-- 🩹 **Field patch** — an improvised, low-chance repair (success % is a setting) to avoid hitting 0 in a pinch.
-- 🛠️ **Edit mode** — full manual control: repair to full, clear a slot, or add an item by hand.
-- 👕 **Auto-outfit from the character description** — one button dresses the player in setting-appropriate gear based on their persona.
-- ⚔️🛡️ **Stats** — armor pieces mitigate incoming damage and a weapon adds attack; these feed RPG Vitals when present.
-- 🧠 **Context injection** — a compact note like `[{{user}}'s outfit — Top: Leather coat (worn); Boots: Boots (BROKEN). {{char}} can see this.]`.
-- 🎒 **Inventory-aware** — repair using materials from the RPG Inventory module if it's installed.
-- 🌍 **Bilingual (RU / EN)**; state saved per chat.
+- 📊 **Inline stat bars** under character messages, in a smooth collapsible accordion.
+- 🎯 **Any stats you want** — per-character stat sets with custom names, colors and AI descriptions.
+- 🧙 **Presets** — Fantasy (health/mana/stamina), Survival (satiety/hydration/warmth), Romance (trust/attraction/mood).
+- ✨ **AI stat designer** — one click and the AI reads the character card and invents 4 custom stats (name, color, description, starting value) that fit that character.
+- 🤖 **AI-updated** — a strict "GM calculator" adjusts values from the last messages every N turns (or on demand via **Recalculate**).
+- 🎨 **Color by value** — bars go green → gold → red as a value drops; plus ▲/▼ trend arrows and a pulsing **critical** state.
+- 🧠 **Context injection** — a short state summary is fed into the system prompt so the model plays the condition.
+- 🗂️ **Per-character or per-chat** — keep one persistent status per character, or give every chat its own independent state.
+- 💾 **Export / import** per character, and a **Reset character** button.
+- 🌍 **Bilingual UI (RU / EN)** — one-click switch; the AI summary language follows it too.
+- 👥 **Group chats** — each speaking character gets and shows its own status.
 
 ## 📦 Install
 
-Copy the `RPG-Equipment-Durability` folder into your third-party extensions folder (e.g. `SillyTavern/data/<user>/extensions/`), reload, and enable it in **Extensions → RPG Equipment (Outfit & Durability)**.
+Copy the `RPG Status Bar` folder into:
+
+```
+SillyTavern/data/<user>/extensions/
+```
+
+Reload SillyTavern and enable it in **Extensions → RPG Status Bar**.
 
 ## ⚙️ Setup
 
-1. Tick **Enable Equipment** and pick a **Language**.
-2. Fill in an OpenAI-compatible **URL / API Key / Model** (default `google/gemma-4-31b-it`) — used for auto-outfit and the optional wear/equip AI checks.
-3. Tune **Durability drops every (messages)** and **Durability lost each time** (large interval = gentle game), the **field-patch success chance**, and the **injection depth**.
+1. Enable **RPG Status Bar**.
+2. Pick **Interface language** (English / Русский).
+3. Fill in **API Settings** — URL / API key / model (OpenAI-compatible; default `google/gemma-4-31b-it`). A cheap, fast model at low temperature works well here.
+4. Choose **how often** to update (every N messages) and whether to **inject** the summary.
+5. Under **Stat configuration**, pick a preset or build your own stats per character.
 
-A shirt button appears on the right side to open the panel.
+## 📊 Stats & how updates work
 
-## 🧠 How it works
+Each stat has a name, a color, and a description that tells the AI what moves it. Every N character messages (or when you press **Recalculate** on a bar) the extension sends the last few messages to the model, which returns new 0–100 values and a one-sentence summary. Snapshots are stored per message in the chat, so scrolling back shows the status at that point.
 
-Every *N* messages each equipped piece loses durability; at 0 it breaks (stays equipped, shown broken). With **AI wear** on, the model reads the latest scene and reports damage to the *specific* garment the scene hit, which the extension applies to the right slot. The current outfit is injected each turn so the character narrates around it (a broken helm, a torn cloak). If armor stats are on, worn pieces reduce incoming HP damage in RPG Vitals and the weapon sets your attack.
+**Generate 4 stats (AI)** reads the selected character's card (description / personality / scenario) and designs four fitting stats automatically — a great starting point you can then tweak. It replaces the current stats and uses your configured model and interface language.
 
-**Auto-outfit** reads the player's own description and fills only the slots the description actually supports — empty slots are left empty (it won't invent a "none" placeholder).
+**Color by value** is best for "higher = better" stats (health, stamina): the bar shifts green/gold/red with the number. Leave it off for stats where a fixed semantic color is clearer.
 
-## 🔌 Cross-extension bridge
+## 🗂️ Per-character vs per-chat
 
-Exposes `window.RPG.equipment`: `isEnabled()`, `list()`, `repairable()`, `repair(slot, amount)`, plus armor/attack totals consumed by RPG Vitals. Reads `window.RPG.inventory` to repair with backpack materials when that module is present.
+By default a character's status is **global** — the same Health follows them into every chat. Turn on **"Separate status for each chat"** to give every chat its own independent values (a new chat starts fresh instead of continuing old HP). The stat *setup* is seeded from the character's global template, so you don't reconfigure stats each time.
 
-## 🩺 Troubleshooting
+**Reset character** restores the current character's values to a fresh baseline (per-chat: reseeds from the template; global: full values + cleared summary).
 
-- **Empty slots were getting filled with "нет".** Fixed in 1.9.3 — auto-outfit now leaves unsupported slots empty and skips "none"-type answers (and clears a previously auto-added placeholder on the next scan).
-- **Setting a starting durability did nothing (item was always 100%).** Fixed in 1.9.4 — the manual add form now has a separate **Durability** field (current) next to **Max**; leave it blank for a fresh full item, or enter e.g. 30 for a worn one.
-- **The chat says my coat tore but the bar didn't move.** Turn on AI wear, or just fix the number in Edit mode — the tracker is the source of truth.
-- **Auto-outfit/AI checks do nothing.** They need a working URL / key / model.
+## 💾 Export / import
+
+In **Stat configuration**, pick a character and use **Export current character** to save a `.json` with the full profile (stat setup + current values + summary). **Import profile** applies a file onto the character selected in the dropdown. Files with multiple profiles are merged. Handy for moving setups between machines or sharing a character's stat sheet.
+
+## 👥 Group chats
+
+Fully supported: the status is computed and rendered **per speaking character**, the editor lets you pick any group member, and the injected summary lists everyone present. Members are matched by avatar, index, or name.
+
+## 🧩 Notes
+
+- Stat keys are sent to the AI verbatim; keep names concise.
+- Past message snapshots keep the language they were generated in; new ones follow the current language.
+- CSS is namespaced (`rpg-*`); nothing global is touched.
