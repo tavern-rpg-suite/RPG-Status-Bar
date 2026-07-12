@@ -455,17 +455,25 @@ Format:
 }
 
 // === RENDER (CSS GRID ANIMATION) ===
+// Resolve the container by walking the nodes rather than with an attribute selector:
+// character names may contain quotes or apostrophes, which would make the selector invalid.
+function findStatusContainer(messageElement, charName) {
+    return Array.from(messageElement.querySelectorAll('.rpg-inline-container'))
+        .find(c => c.getAttribute('data-char') === charName) || null;
+}
+
 function renderInlineStatus(messageId, charName, statsData, isLoading = false, isError = false) {
     const messageElement = document.querySelector(`.mes[mesid="${messageId}"]`);
     if (!messageElement) return;
 
-    let container = messageElement.querySelector(`.rpg-inline-container[data-char="${charName}"]`);
+    let container = findStatusContainer(messageElement, charName);
     if (!container) {
+        const mesText = messageElement.querySelector('.mes_text');
+        if (!mesText) return;   // message body not built yet; avoid creating a detached container
         container = document.createElement('div');
         container.className = 'rpg-inline-container';
         container.setAttribute('data-char', charName);
-        const mesText = messageElement.querySelector('.mes_text');
-        if (mesText) mesText.appendChild(container);
+        mesText.appendChild(container);
     }
 
     if (isLoading) {
@@ -947,6 +955,53 @@ function mountSettings() {
     renderDynamicStats();
 }
 
+/* ============================================================
+   STATUS RECONCILIATION
+   The status block lives inside .mes_text, which SillyTavern rebuilds from scratch on swipes,
+   edits, "continue", regex scripts and when older messages are printed lazily on scroll.
+   Any of those detach the block while the data in msg.extra.rpg_status stays intact.
+   A MutationObserver on #chat re-attaches every status a message has in its data but not in
+   its DOM, which keeps rendering in sync without depending on any single event.
+   ============================================================ */
+let reconcileTimer = null;
+function reconcileStatuses() {
+    if (!settings.enabled) return;
+    const chat = getContext().chat;
+    if (!chat || !chat.length) return;
+    document.querySelectorAll('#chat .mes[mesid]').forEach(el => {
+        const id = parseInt(el.getAttribute('mesid'), 10);
+        if (isNaN(id)) return;
+        const msg = chat[id];
+        const data = msg && msg.extra && msg.extra.rpg_status;
+        if (!data || typeof data !== 'object') return;
+        Object.keys(data).forEach(charName => {
+            if (!findStatusContainer(el, charName)) renderInlineStatus(id, charName, data[charName]);
+        });
+    });
+}
+function scheduleReconcile() { clearTimeout(reconcileTimer); reconcileTimer = setTimeout(reconcileStatuses, 150); }
+
+let chatObserver = null;
+function observeChat() {
+    const chatEl = document.getElementById('chat');
+    if (!chatEl) { setTimeout(observeChat, 500); return; }   // ST hasn't built the chat pane yet
+    if (chatObserver) chatObserver.disconnect();
+    // childList only; re-attaching settles on the first pass, so the observer converges
+    chatObserver = new MutationObserver(scheduleReconcile);
+    chatObserver.observe(chatEl, { childList: true, subtree: true });
+}
+
+/* Group membership can change without a CHAT_CHANGED, so the stat editor's character list has
+   to be rebuilt on group events as well. Rebuild only when the cast actually changed, otherwise
+   redrawing would drop focus from a stat field being edited. */
+let lastCastKey = '';
+function refreshCastIfChanged(force) {
+    const cast = getActiveCharacters().map(c => c.name).join('\u0001');
+    if (!force && cast === lastCastKey) return;
+    lastCastKey = cast;
+    renderDynamicStats();
+}
+
 function restoreStatusesOnLoad() {
     if (!settings.enabled) return;
     const context = getContext();
@@ -960,6 +1015,7 @@ function restoreStatusesOnLoad() {
         }
     });
     updateContextInjection();
+    scheduleReconcile();   // messages not yet printed are picked up by the observer
 }
 
 jQuery(() => {
@@ -968,10 +1024,25 @@ jQuery(() => {
         mountSettings();
         updateContextInjection();
 
+        observeChat();
+
         eventSource.on(event_types.CHAT_CHANGED, () => {
-            renderDynamicStats();
+            lastCastKey = '';            // force a rebuild of the character list for the new chat
+            refreshCastIfChanged(true);
             restoreStatusesOnLoad();
         });
+
+        // Adding or removing a group member does not fire CHAT_CHANGED; these events do.
+        ['GROUP_UPDATED', 'GROUP_MEMBER_DRAFTED', 'CHARACTER_EDITED', 'CHARACTER_DELETED', 'CHARACTER_DUPLICATED']
+            .forEach(k => { if (event_types[k]) eventSource.on(event_types[k], () => refreshCastIfChanged(false)); });
+
+        // Fallback for builds that expose none of the group events above.
+        $(document).on('click', '.rpg-status-settings .rpg-drawer-toggle', () => setTimeout(() => refreshCastIfChanged(false), 0));
+
+        // Events that rebuild message bodies. MORE_MESSAGES_LOADED covers the lazy printing of
+        // older messages on scroll, which is not otherwise announced.
+        ['MORE_MESSAGES_LOADED', 'MESSAGE_UPDATED', 'MESSAGE_DELETED', 'USER_MESSAGE_RENDERED', 'GENERATION_ENDED', 'CHAT_LOADED']
+            .forEach(k => { if (event_types[k]) eventSource.on(event_types[k], scheduleReconcile); });
 
         eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (messageId) => {
             if (!settings.enabled) return;
@@ -979,6 +1050,7 @@ jQuery(() => {
             if (msg && !msg.is_user && !msg.is_system && msg.extra?.rpg_status?.[msg.name]) {
                 renderInlineStatus(messageId, msg.name, msg.extra.rpg_status[msg.name]);
             }
+            scheduleReconcile();
         });
 
         eventSource.on(event_types.MESSAGE_EDITED, (messageId) => {
