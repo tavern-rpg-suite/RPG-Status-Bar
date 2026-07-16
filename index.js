@@ -79,6 +79,11 @@ const I18N = {
         stat_energy_desc: "Alertness. Drops over time, restored by sleep.",
         new_stat_name: "New stat",
         new_stat_desc: "Description...",
+        ui_link_label: "🔗 Link to Vitals:",
+        ui_link_title: "Mirror the PLAYER's live value from the RPG Vitals extension — no AI call, always in sync. Note: Fatigue is 'higher = worse', so turn 'Color by value' off for it.",
+        link_none: "— not linked —",
+        link_hp: "HP (health)", link_hunger: "Satiety", link_mana: "Mana", link_fatigue: "Fatigue",
+        link_missing: "RPG Vitals is not active — the linked value will freeze until it is.",
         colors: {
             red: "🔴 Blood / Health", blue: "🔵 Mana / Energy", green: "🟢 Stamina / Poison",
             gold: "🟡 Satiety / Morale", purple: "🟣 Magic / Sanity", cyan: "💠 Shield / Cold",
@@ -167,6 +172,11 @@ const I18N = {
         stat_energy_desc: "Бодрость. Снижается со временем, восстанавливается сном.",
         new_stat_name: "Новый стат",
         new_stat_desc: "Описание...",
+        ui_link_label: "🔗 Связать с Vitals:",
+        ui_link_title: "Зеркалит живое значение ИГРОКА из расширения RPG Vitals — без вызова ИИ, всегда синхронно. Учти: «Усталость» — это «больше = хуже», для неё лучше выключить «Цвет по значению».",
+        link_none: "— не связан —",
+        link_hp: "HP (здоровье)", link_hunger: "Сытость", link_mana: "Мана", link_fatigue: "Усталость",
+        link_missing: "RPG Vitals не активен — связанное значение замрёт, пока он не появится.",
         colors: {
             red: "🔴 Кровь / Здоровье", blue: "🔵 Мана / Энергия", green: "🟢 Выносливость / Яд",
             gold: "🟡 Сытость / Дух", purple: "🟣 Магия / Рассудок", cyan: "💠 Щит / Холод",
@@ -191,6 +201,19 @@ const I18N = {
         }
     }
 };
+
+// Names/summaries come from the AI and from downloaded character cards — never trust them raw in HTML.
+function escapeHtml(x) {
+    return String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+// The model sometimes returns junk instead of a string (-1, bare numbers, "null").
+// String(x || fallback) lets it through because -1 is truthy. A real name/summary has letters.
+function aiName(x, fallback = null, maxLen = 60) {
+    const s = String(x == null ? '' : x).trim();
+    if (s.length < 2 || !/\p{L}/u.test(s)) return fallback;
+    if (/^(null|undefined|n\/?a|none|нет|-?\d+)$/i.test(s)) return fallback;
+    return s.slice(0, maxLen);
+}
 
 function langObj() { return I18N[settings.language] || I18N.en; }
 function t(key, vars) {
@@ -234,6 +257,32 @@ function loadSettings() {
     if (!extension_settings[MODULE_NAME]) extension_settings[MODULE_NAME] = {};
     settings = Object.assign({}, defaultSettings, extension_settings[MODULE_NAME]);
     if (!settings.profiles) settings.profiles = {};
+    if (!settings.chatStamps) settings.chatStamps = {};
+    // heal NaN/garbage saved from empty number inputs by older builds
+    if (!Number.isFinite(settings.updateFrequency)) settings.updateFrequency = defaultSettings.updateFrequency;
+    if (!Number.isFinite(settings.injectDepth)) settings.injectDepth = defaultSettings.injectDepth;
+}
+
+// With "per-chat" on, keys like `chatId::Name` used to pile up forever, bloating settings.json.
+// Per-chat VALUES untouched for 60 days are dropped; the character's global template (plain
+// `Name` key, i.e. the stat config) is never pruned, so nothing needs re-setting-up.
+const STATE_TTL_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+function pruneOldStates() {
+    const now = Date.now();
+    let changed = false;
+    const liveChats = new Set();
+    for (const key of Object.keys(settings.profiles)) {
+        const i = key.indexOf('::');
+        if (i < 0) continue;                      // global template — keep forever
+        const chatId = key.slice(0, i);
+        if (!settings.chatStamps[chatId]) { settings.chatStamps[chatId] = now; changed = true; liveChats.add(chatId); continue; } // migrate
+        if (now - settings.chatStamps[chatId] > STATE_TTL_MS) { delete settings.profiles[key]; changed = true; }
+        else liveChats.add(chatId);
+    }
+    for (const id of Object.keys(settings.chatStamps)) {
+        if (!liveChats.has(id)) { delete settings.chatStamps[id]; changed = true; }
+    }
+    if (changed) saveSettings();
 }
 
 function saveSettings() {
@@ -247,7 +296,12 @@ function saveSettings() {
 // from the character's global template (config carries over, values are fresh).
 function profileKey(charName) {
     const chatId = getContext().chatId;
-    return (settings.perChatProfiles && chatId) ? `${chatId}::${charName}` : charName;
+    if (settings.perChatProfiles && chatId) {
+        if (!settings.chatStamps) settings.chatStamps = {};
+        settings.chatStamps[chatId] = Date.now();   // touch: keeps this chat's values from being pruned
+        return `${chatId}::${charName}`;
+    }
+    return charName;
 }
 
 function getProfile(charName) {
@@ -280,7 +334,7 @@ function resetCharacter(charName) {
     saveSettings();
     renderDynamicStats();
     updateContextInjection();
-    toastr.success(t('toast_reset', { char: charName }));
+    toastr.success(t('toast_reset', { char: escapeHtml(charName) }));
 }
 
 // === AI: design custom stats from the character card ===
@@ -318,7 +372,7 @@ async function callStatsAI(system, user) {
 async function generateStatsForCharacter(charName) {
     if (!settings.apiKey) { toastr.warning(t('toast_no_key')); return; }
     const card = getCharacterCard(charName);
-    if (!card) { toastr.warning(t('toast_no_card', { char: charName })); return; }
+    if (!card) { toastr.warning(t('toast_no_card', { char: escapeHtml(charName) })); return; }
 
     toastr.info(t('toast_gen_start'));
     try {
@@ -338,14 +392,16 @@ Output ONLY valid JSON: { "stats": [ {"name":"","desc":"","color":"red","value":
         stats = stats.slice(0, 4).map(s => {
             let v = Number(s.value);
             if (!isFinite(v)) v = 100;
+            const nm = aiName(s.name, null, 40);
+            if (!nm) return null;                       // junk entry from the model — drop it
             return {
-                name: String(s.name || t('new_stat_name')).slice(0, 40),
-                desc: String(s.desc || ''),
+                name: nm,
+                desc: aiName(s.desc, '', 200) || '',
                 color: validColors.includes(s.color) ? s.color : 'blue',
                 value: Math.max(0, Math.min(100, Math.round(v))),
                 dynamicColor: !!s.dynamicColor
             };
-        });
+        }).filter(Boolean);
         if (stats.length === 0) throw new Error("no stats returned");
 
         const profile = getProfile(charName);
@@ -357,6 +413,41 @@ Output ONLY valid JSON: { "stats": [ {"name":"","desc":"","color":"red","value":
         updateContextInjection();
         toastr.success(t('toast_gen_done'));
     } catch (e) { console.error("Stat generation failed:", e); toastr.error(t('toast_gen_fail')); }
+}
+
+/* ============================================================
+   RPG VITALS LINK
+   A stat can mirror the PLAYER's live value from the RPG Vitals
+   extension (window.RPG.vitals): zero AI calls, never out of sync,
+   and it stops the same HP being computed twice by two extensions.
+   Vitals loads after this extension, so the bridge is checked at
+   read time, never cached.
+   ============================================================ */
+const LINK_KEYS = ['hp', 'hunger', 'mana', 'fatigue'];
+function vitApi() {
+    const v = (typeof window !== 'undefined') && window.RPG && window.RPG.vitals;
+    return (v && v.available) ? v : null;
+}
+function linkedValue(link) {
+    const v = vitApi();
+    if (!v) return null;
+    try {
+        if (link === 'hp') { const h = v.getHp(); return (h && h.max > 0) ? Math.round(h.hp / h.max * 100) : null; }
+        if (link === 'hunger') { const n = v.getHunger(); return isFinite(n) ? Math.round(n) : null; }
+        if (link === 'mana') { const n = v.getMana(); return isFinite(n) ? Math.round(n) : null; }
+        if (link === 'fatigue') { const n = v.getFatigue(); return isFinite(n) ? Math.round(n) : null; }
+    } catch (e) { /* vitals mid-switch — keep the old value */ }
+    return null;
+}
+// refresh every linked stat of a profile from Vitals; returns true if anything moved
+function refreshLinkedStats(profile) {
+    let changed = false;
+    (profile.stats || []).forEach(st => {
+        if (!st.link) return;
+        const nv = linkedValue(st.link);
+        if (nv !== null && nv !== st.value) { st.value = Math.max(0, Math.min(100, nv)); changed = true; }
+    });
+    return changed;
 }
 
 function getActiveCharacters() {
@@ -388,6 +479,7 @@ async function calculateNewStats(historyText, charName) {
     let currentValuesJSON = {};
 
     profile.stats.forEach(stat => {
+        if (stat.link) return;                 // linked stats come live from Vitals — no tokens, no drift
         statsRules += `- "${stat.name}": (0 to 100). ${stat.desc}\n`;
         currentValuesJSON[stat.name] = stat.value;
     });
@@ -480,7 +572,7 @@ function renderInlineStatus(messageId, charName, statsData, isLoading = false, i
         container.innerHTML = `
             <div class="rpg-inline-header">
                 <div class="rpg-header-left">
-                    <i class="fa-solid fa-heart-pulse"></i> <span>${t('inline_status', { char: charName })}</span>
+                    <i class="fa-solid fa-heart-pulse"></i> <span>${t('inline_status', { char: escapeHtml(charName) })}</span>
                 </div>
                 <div class="rpg-header-right">
                     <span class="rpg-mini-summary">${t('inline_analyzing')}</span>
@@ -495,14 +587,14 @@ function renderInlineStatus(messageId, charName, statsData, isLoading = false, i
         container.innerHTML = `
             <div class="rpg-inline-header expanded">
                 <div class="rpg-header-left">
-                    <i class="fa-solid fa-triangle-exclamation"></i> <span>${t('inline_error', { char: charName })}</span>
+                    <i class="fa-solid fa-triangle-exclamation"></i> <span>${t('inline_error', { char: escapeHtml(charName) })}</span>
                 </div>
             </div>
             <div class="rpg-accordion-wrapper expanded">
                 <div class="rpg-inline-body">
                     <div class="rpg-inline-body-inner">
-                        <div style="color:#ff6b6b; font-size:0.85rem; margin-bottom: 10px;">${statsData}</div>
-                        <button class="rpg-force-update" data-id="${messageId}" data-char="${charName}"><i class="fa-solid fa-rotate-right"></i> ${t('inline_retry')}</button>
+                        <div style="color:#ff6b6b; font-size:0.85rem; margin-bottom: 10px;">${escapeHtml(statsData)}</div>
+                        <button class="rpg-force-update" data-id="${messageId}" data-char="${escapeHtml(charName)}"><i class="fa-solid fa-rotate-right"></i> ${t('inline_retry')}</button>
                     </div>
                 </div>
             </div>
@@ -529,7 +621,7 @@ function renderInlineStatus(messageId, charName, statsData, isLoading = false, i
 
             barsHtml += `
                 <div class="rpg-stat-row${isCritical ? ' rpg-critical' : ''}">
-                    <div class="rpg-stat-labels"><span>${stat.name}${isCritical ? ' <i class="fa-solid fa-triangle-exclamation rpg-crit-icon"></i>' : ''}</span><span>${val}/100${deltaHtml}</span></div>
+                    <div class="rpg-stat-labels"><span>${escapeHtml(stat.name)}${isCritical ? ' <i class="fa-solid fa-triangle-exclamation rpg-crit-icon"></i>' : ''}</span><span>${val}/100${deltaHtml}</span></div>
                     <div class="rpg-stat-bar-bg"><div class="rpg-stat-bar-fill ${colorClass}" style="width: ${val}%"></div></div>
                 </div>`;
         });
@@ -542,10 +634,10 @@ function renderInlineStatus(messageId, charName, statsData, isLoading = false, i
         container.innerHTML = `
             <div class="rpg-inline-header${anyCritical ? ' rpg-header-critical' : ''}" title="${t('inline_toggle_title')}">
                 <div class="rpg-header-left">
-                    <i class="fa-solid ${headerIcon}"></i> <span>${t('inline_status', { char: charName })}</span>
+                    <i class="fa-solid ${headerIcon}"></i> <span>${t('inline_status', { char: escapeHtml(charName) })}</span>
                 </div>
                 <div class="rpg-header-right">
-                    <span class="rpg-mini-summary">${shortSummary}</span>
+                    <span class="rpg-mini-summary">${escapeHtml(shortSummary)}</span>
                     <i class="fa-solid fa-chevron-down rpg-chevron"></i>
                 </div>
             </div>
@@ -554,8 +646,8 @@ function renderInlineStatus(messageId, charName, statsData, isLoading = false, i
                     <div class="rpg-inline-body-inner">
                         ${barsHtml}
                         <div class="rpg-body-footer">
-                            <div class="rpg-status-summary">${statsData.summary}</div>
-                            <button class="rpg-force-update" data-id="${messageId}" data-char="${charName}" title="${t('inline_recalc_title')}">
+                            <div class="rpg-status-summary">${escapeHtml(statsData.summary)}</div>
+                            <button class="rpg-force-update" data-id="${messageId}" data-char="${escapeHtml(charName)}" title="${t('inline_recalc_title')}">
                                 <i class="fa-solid fa-rotate-right"></i> ${t('inline_recalc')}
                             </button>
                         </div>
@@ -609,6 +701,7 @@ async function processCharacterStatus(messageId, charName, forceUpdate = false) 
     }
 
     if (!needsApiCall) {
+        refreshLinkedStats(profile);           // even without an AI call, linked bars stay live
         const currentData = { stats: JSON.parse(JSON.stringify(profile.stats)), summary: profile.summary };
         if (!msg.extra) msg.extra = {};
         if (!msg.extra.rpg_status) msg.extra.rpg_status = {};
@@ -619,6 +712,9 @@ async function processCharacterStatus(messageId, charName, forceUpdate = false) 
     }
 
     renderInlineStatus(messageId, charName, null, true, false);
+    const myChat = context.chatId;   // message ids overlap between chats: a result arriving after a
+                                     // switch used to paint the OLD chat's status onto the NEW chat's
+                                     // message with the same number, and save into the wrong chat file
 
     try {
         const startIdx = Math.max(0, messageId - 10);
@@ -626,18 +722,25 @@ async function processCharacterStatus(messageId, charName, forceUpdate = false) 
         const historyText = historySlice.map(m => `${m.name}: ${m.mes}`).join('\n\n');
 
         const result = await calculateNewStats(historyText, charName);
+        if (getContext().chatId !== myChat) return;   // chat changed while the AI was thinking
 
         const deltas = {};
         if (result.stats) {
             profile.stats.forEach((stat) => {
+                if (stat.link) return;                    // Vitals owns this one
                 if (result.stats[stat.name] !== undefined) {
-                    const oldVal = stat.value;
-                    stat.value = result.stats[stat.name];
+                    // the model can answer with strings, -5 or 150 — a stat is always a clamped number
+                    const nv = Number(result.stats[stat.name]);
+                    if (!isFinite(nv)) return;
+                    const oldVal = Number(stat.value) || 0;
+                    stat.value = Math.max(0, Math.min(100, Math.round(nv)));
                     deltas[stat.name] = stat.value - oldVal;
                 }
             });
         }
-        if (result.summary) profile.summary = result.summary;
+        const cleanSummary = aiName(result.summary, null, 400);   // junk ("-1") must not become the state line
+        if (cleanSummary) profile.summary = cleanSummary;
+        refreshLinkedStats(profile);           // stamp the snapshot with Vitals' current numbers
         saveSettings();
 
         const snapshotData = { stats: JSON.parse(JSON.stringify(profile.stats)), summary: profile.summary };
@@ -667,7 +770,10 @@ function updateContextInjection() {
 
     activeChars.forEach(char => {
         const p = settings.profiles[profileKey(char.name)];
-        if (p) injectionText += `${char.name}: ${p.summary}\n`;
+        if (!p) return;
+        refreshLinkedStats(p);
+        const linked = (p.stats || []).filter(st => st.link).map(st => `${st.name} ${st.value}/100`).join(', ');
+        injectionText += `${char.name}: ${p.summary}${linked ? ` (${linked})` : ''}\n`;
     });
 
     setExtensionPrompt(PROMPT_KEY, injectionText, 2, settings.injectDepth, false, extension_prompt_roles.SYSTEM);
@@ -696,7 +802,7 @@ function exportCurrentProfile() {
         character: name,
         profile: JSON.parse(JSON.stringify(profile))
     }, `rpg_status_${safe}.json`);
-    toastr.success(t('toast_exported', { char: name }));
+    toastr.success(t('toast_exported', { char: escapeHtml(name) }));
 }
 
 function importProfile() {
@@ -718,7 +824,7 @@ function importProfile() {
                     saveSettings();
                     renderDynamicStats();
                     updateContextInjection();
-                    toastr.success(t('toast_imported', { char: target }));
+                    toastr.success(t('toast_imported', { char: escapeHtml(target) }));
                     return;
                 }
 
@@ -824,7 +930,7 @@ function renderDynamicStats() {
         <label>${t('ui_edit_for')}</label>
         <select id="rpg-char-select" class="text_pole flex1">`;
     activeChars.forEach(name => {
-        html += `<option value="${name}" ${name === currentlyEditingChar ? 'selected' : ''}>${name}</option>`;
+        html += `<option value="${escapeHtml(name)}" ${name === currentlyEditingChar ? 'selected' : ''}>${escapeHtml(name)}</option>`;
     });
     html += `</select></div>`;
 
@@ -855,13 +961,20 @@ function renderDynamicStats() {
         html += `
             <div class="rpg-settings-stat-block">
                 <i class="fa-solid fa-trash rpg-delete-stat-btn" data-id="${i}" title="${t('ui_delete')}"></i>
-                <input type="text" class="text_pole rpg-stat-name" data-id="${i}" value="${stat.name}" placeholder="${t('ui_stat_name_ph')}" style="width: 80%; margin-bottom: 5px;">
+                <input type="text" class="text_pole rpg-stat-name" data-id="${i}" value="${escapeHtml(stat.name)}" placeholder="${t('ui_stat_name_ph')}" style="width: 80%; margin-bottom: 5px;">
                 <select class="text_pole rpg-stat-color" data-id="${i}" style="width: 100%; margin-bottom: 5px;">${colorOptionsHtml}</select>
-                <textarea class="text_pole rpg-stat-desc" data-id="${i}" rows="2" placeholder="${t('ui_stat_desc_ph')}" style="width: 100%;">${stat.desc}</textarea>
+                <textarea class="text_pole rpg-stat-desc" data-id="${i}" rows="2" placeholder="${t('ui_stat_desc_ph')}" style="width: 100%;">${escapeHtml(stat.desc)}</textarea>
                 <label class="checkbox_label rpg-dyncolor-label" title="${t('ui_color_by_value_title')}">
                     <input type="checkbox" class="rpg-stat-dyncolor" data-id="${i}" ${stat.dynamicColor ? 'checked' : ''}>
                     <span>${t('ui_color_by_value')}</span>
                 </label>
+                <div class="flex-container alignitemscenter flexgap5" title="${t('ui_link_title')}">
+                    <label style="font-size:0.85em;">${t('ui_link_label')}</label>
+                    <select class="text_pole rpg-stat-link" data-id="${i}" style="flex:1;">
+                        <option value="" ${!stat.link ? 'selected' : ''}>${t('link_none')}</option>
+                        ${LINK_KEYS.map(k => `<option value="${k}" ${stat.link === k ? 'selected' : ''}>${t('link_' + k)}</option>`).join('')}
+                    </select>
+                </div>
             </div>
         `;
     });
@@ -897,6 +1010,15 @@ function renderDynamicStats() {
     $('.rpg-stat-desc').on('input', function () { profile.stats[$(this).data('id')].desc = $(this).val(); saveSettings(); });
     $('.rpg-stat-color').on('change', function () { profile.stats[$(this).data('id')].color = $(this).val(); saveSettings(); });
     $('.rpg-stat-dyncolor').on('change', function () { profile.stats[$(this).data('id')].dynamicColor = this.checked; saveSettings(); });
+    $('.rpg-stat-link').on('change', function () {
+        const st = profile.stats[$(this).data('id')];
+        st.link = $(this).val() || '';
+        if (st.link) {
+            const nv = linkedValue(st.link);
+            if (nv !== null) st.value = nv; else toastr.info(t('link_missing'));
+        }
+        saveSettings(); updateContextInjection();
+    });
 
     $('.rpg-preset-btn').on('click', function () {
         const preset = statPresets()[$(this).data('preset')];
@@ -934,8 +1056,8 @@ function mountSettings() {
     $('#rpg-base-url').val(settings.baseUrl).on('input', function () { settings.baseUrl = $(this).val(); saveSettings(); });
     $('#rpg-api-key').val(settings.apiKey).on('input', function () { settings.apiKey = $(this).val(); saveSettings(); });
     $('#rpg-model').val(settings.model).on('input', function () { settings.model = $(this).val(); saveSettings(); });
-    $('#rpg-freq').val(settings.updateFrequency).on('change', function () { settings.updateFrequency = parseInt($(this).val()); saveSettings(); });
-    $('#rpg-inject-depth').val(settings.injectDepth).on('change', function () { settings.injectDepth = parseInt($(this).val()); saveSettings(); updateContextInjection(); });
+    $('#rpg-freq').val(settings.updateFrequency).on('change', function () { settings.updateFrequency = Math.max(1, parseInt($(this).val()) || 5); $(this).val(settings.updateFrequency); saveSettings(); });
+    $('#rpg-inject-depth').val(settings.injectDepth).on('change', function () { settings.injectDepth = Math.max(0, parseInt($(this).val()) || 0); $(this).val(settings.injectDepth); saveSettings(); updateContextInjection(); });
     $('#rpg-inject-context').prop('checked', settings.injectContext).on('change', function () { settings.injectContext = this.checked; saveSettings(); updateContextInjection(); });
     $('#rpg-per-chat').prop('checked', settings.perChatProfiles).on('change', function () {
         settings.perChatProfiles = this.checked;
@@ -1021,6 +1143,7 @@ function restoreStatusesOnLoad() {
 jQuery(() => {
     try {
         loadSettings();
+        pruneOldStates();
         mountSettings();
         updateContextInjection();
 
