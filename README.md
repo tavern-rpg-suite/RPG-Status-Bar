@@ -59,15 +59,3 @@ In **Stat configuration**, pick a character and use **Export current character**
 ## 👥 Group chats
 
 Fully supported: the status is computed and rendered **per speaking character**, the editor lets you pick any group member, and the injected summary lists everyone present. Members are matched by avatar, index, or name.
-
-## 🧩 Notes
-
-- Stat keys are sent to the AI verbatim; keep names concise.
-- Past message snapshots keep the language they were generated in; new ones follow the current language.
-- CSS is namespaced (`rpg-*`); nothing global is touched.
-
-## 🩺 Troubleshooting
-
-- **The status block disappears from a message.** Fixed in 1.4.0. The block lives inside `.mes_text`, which SillyTavern rebuilds on swipes, edits, "continue", regex scripts and when older messages are printed lazily on scroll (`MORE_MESSAGES_LOADED`, which was not being listened for). A `MutationObserver` on `#chat` re-attaches any status a message has in its data but not in its DOM. Only the rendering was affected; the stored values were never lost.
-- **A character added to a group appears under "Edit stats for:" only after a reload.** Fixed in 1.4.0. The list was rebuilt on `CHAT_CHANGED` only, which editing a group roster does not fire. It now also listens to `GROUP_UPDATED` / `GROUP_MEMBER_DRAFTED`, and rebuilds only when the cast actually changed so that focus is not dropped from a field being edited.
-- **Characters whose name contains an apostrophe do not render.** Fixed in 1.4.0. The container was resolved with an attribute selector, which is invalid for such names and aborted the render.
