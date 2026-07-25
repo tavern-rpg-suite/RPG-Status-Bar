@@ -2,7 +2,7 @@
 
 A SillyTavern extension that shows an **inline status bar under each character message** — health, mana, stamina, mood, trust, arousal… whatever stats you define. An AI Game Master reads the recent story and updates the values periodically, with animated bars, trend arrows, critical-state warnings, and a one-line summary that can be injected back into the prompt so the model stays aware of the character's condition.
 
-**Version 1.5.0**
+**Version 1.5.1**
 
 ---
 
