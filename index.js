@@ -565,7 +565,11 @@ function renderInlineStatus(messageId, charName, statsData, isLoading = false, i
         container = document.createElement('div');
         container.className = 'rpg-inline-container';
         container.setAttribute('data-char', charName);
-        mesText.appendChild(container);
+        // Sit NEXT TO the text, never inside it. SillyTavern owns .mes_text and rebuilds it on
+        // streaming ticks, swipes, edits, regex scripts and markdown passes — a foreign <div>
+        // inside it kept getting wiped (vanishing bars) and could tangle ST's text formatting
+        // (stray italics/quote styling bleeding into the message — the "grey text" effect).
+        mesText.insertAdjacentElement('afterend', container);
     }
 
     if (isLoading) {
@@ -1079,11 +1083,11 @@ function mountSettings() {
 
 /* ============================================================
    STATUS RECONCILIATION
-   The status block lives inside .mes_text, which SillyTavern rebuilds from scratch on swipes,
-   edits, "continue", regex scripts and when older messages are printed lazily on scroll.
-   Any of those detach the block while the data in msg.extra.rpg_status stays intact.
-   A MutationObserver on #chat re-attaches every status a message has in its data but not in
-   its DOM, which keeps rendering in sync without depending on any single event.
+   The status block sits right AFTER .mes_text (as its sibling). SillyTavern rebuilds .mes_text
+   itself on swipes, edits, "continue", regex scripts and lazy printing — the block survives those
+   now, but full message re-renders can still drop it while the data in msg.extra.rpg_status stays
+   intact. A MutationObserver on #chat re-attaches every status a message has in its data but not
+   in its DOM, which keeps rendering in sync without depending on any single event.
    ============================================================ */
 let reconcileTimer = null;
 function reconcileStatuses() {
@@ -1152,6 +1156,8 @@ jQuery(() => {
         eventSource.on(event_types.CHAT_CHANGED, () => {
             lastCastKey = '';            // force a rebuild of the character list for the new chat
             refreshCastIfChanged(true);
+            observeChat();               // #chat can be re-created by ST; re-arm the observer or
+                                         // detached bars would silently never come back
             restoreStatusesOnLoad();
         });
 
