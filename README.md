@@ -1,4 +1,4 @@
-# RPG Status Bar
+# RPG-Status Bar+Bonds
 
 A SillyTavern extension that gives your characters a **living status bar** — health, mana, stamina, mood, trust, attraction, relationships, and more.
 
