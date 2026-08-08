@@ -59,7 +59,7 @@ Reload SillyTavern and enable it in **Extensions → RPG Status Bar**.
 
 ## ⚙️ Setup
 
-1. Enable **RPG Status Bar**.
+1. Enable **RPG Status Bar+Bonds**.
 2. Choose the interface language.
 3. Configure the API URL, key and model. Any OpenAI-compatible endpoint should work.
 4. Choose how often stats should update and whether to inject their summary.
