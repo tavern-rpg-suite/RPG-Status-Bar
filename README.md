@@ -10,6 +10,8 @@ The status is updated from the story and shown directly under character messages
 
 ### 📊 RPG Stats
 
+<img width="673" height="336" alt="Screenshot_16" src="https://github.com/user-attachments/assets/cc64cd51-55b7-4e6b-9756-a15ef2fd1996" />
+
 - 📊 **Inline stat bars** under character messages, in a smooth collapsible accordion.
 - 🎯 **Custom stats** — create any stats you want with custom names, colors and descriptions.
 - 🧙 **Presets** — Fantasy, Survival, Romance, or your own.
@@ -22,6 +24,8 @@ The status is updated from the story and shown directly under character messages
 - 💾 **Export / import** character profiles.
 
 ### 💞 Tavern Bonds
+
+<img width="679" height="523" alt="Screenshot_15" src="https://github.com/user-attachments/assets/3af61e61-b4e3-4940-bc67-510e0d81d7ae" />
 
 A relationship system that makes characters **remember how they feel about you and act accordingly**.
 
