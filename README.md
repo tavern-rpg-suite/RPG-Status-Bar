@@ -4,7 +4,7 @@ A SillyTavern extension that gives your characters a **living status bar** — h
 
 The status is updated from the story and shown directly under character messages. Different systems can work independently or together, so you can use RPG stats, relationship tracking, or both.
 
-**Version 1.5.1**
+**Version 2.0.0**
 
 ## ✨ Features
 
