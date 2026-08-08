@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,700;1,500&family=Caveat:wght@500;600&family=PT+Mono&family=Special+Elite&display=swap');
+
 /* ============================================
    RPG STATUS BAR 3.5 - SMOOTH ACCORDION
    ============================================ */
@@ -167,3 +169,775 @@
 /* #1 color-by-value checkbox in the stat editor */
 .rpg-dyncolor-label { display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: 0.8rem; color: #a8b2d1; cursor: pointer; }
 .rpg-dyncolor-label input { cursor: pointer; }
+
+
+/* ============================================================
+   TAVERN BONDS ENGINE — "THE ALBUM"
+   Same paper family as the RPG Engine, different object: the inventory is a
+   leather field journal and events are a manila dossier, so relationships are a
+   cloth-bound album — green binding, ribbon tabs, one page per person.
+   The signature is the brass ceiling pin on every bar: the point past which this
+   particular character will never go, visible without a single number.
+   ============================================================ */
+
+:root {
+    --tbe-cloth: #2f4034;
+    --tbe-cloth-dark: #1e2a22;
+    --tbe-ribbon: #6e1f21;
+    --tbe-page: #efe6cf;
+    --tbe-page-edge: #ddd0ae;
+    --tbe-ink: #33312c;
+    --tbe-ink-soft: #6f6857;
+    --tbe-brass: #a9762f;
+    --tbe-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='tben'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23tben)' opacity='0.08'/%3E%3C/svg%3E");
+}
+
+/* ============================================================
+   FLOATING BUTTON — sits one row above the RPG Engine's buttons
+   ============================================================ */
+/* The button lives in the suite's shared row (#rpg-buttons-container), whose own
+   styles are set inline by whichever module creates it first. Only the button itself
+   is styled here — size and shape kept to the suite's 44px so the row reads as one
+   piece; only colour and icon are ours. */
+/* The white ring is NOT supplied by .rpg-floating-btn — each module draws its own.
+   Dropping it here to "let the suite handle it" is what left this button ringless
+   next to its neighbours. Declared explicitly, same as theirs. */
+#tbe-btn {
+    cursor: pointer;
+    align-items: center; justify-content: center;
+    background: #b23a3a;
+    border: 2px solid #fff;
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, .45);
+    transition: transform .15s, filter .15s;
+}
+#tbe-btn i { font-size: 21px; color: #fff; }
+#tbe-btn:hover { transform: scale(1.1); filter: brightness(1.12); }
+#tbe-btn:focus-visible { outline: 2px solid var(--tbe-brass); outline-offset: 3px; }
+
+/* ============================================================
+   THE BOOK
+   ============================================================ */
+.tbe-modal {
+    position: fixed; bottom: 80px; right: 20px;
+    width: 400px; max-width: 92vw; max-height: 72vh;
+    display: flex; flex-direction: column;
+    z-index: 4000; opacity: 0; pointer-events: none;
+    transition: opacity .2s ease-in-out;
+    color: var(--tbe-ink);
+    font-family: 'Alegreya', Georgia, serif;
+    background:
+        linear-gradient(90deg, var(--tbe-cloth) 0 18px, var(--tbe-cloth-dark) 18px 22px, transparent 22px),
+        var(--tbe-noise),
+        linear-gradient(160deg, #f3ead5, var(--tbe-page) 45%, var(--tbe-page-edge));
+    border: 1px solid #1a231d;
+    border-radius: 4px 10px 10px 4px;
+    box-shadow: 0 18px 44px rgba(0,0,0,.55), inset -1px 0 0 rgba(255,255,255,.25);
+}
+.tbe-modal.visible { opacity: 1; pointer-events: auto; animation: tbe-open .26s ease; }
+
+@keyframes tbe-open {
+    0%   { transform: perspective(900px) rotateY(-4deg) scale(.985); }
+    100% { transform: perspective(900px) rotateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .tbe-modal.visible { animation: none; }
+    #tbe-btn { transition: none; }
+}
+
+.tbe-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 13px 9px 30px;
+    cursor: grab; user-select: none;
+    border-bottom: 1px dashed #c8b98f;
+}
+.tbe-modal-header:active { cursor: grabbing; }
+.tbe-modal-header > span:first-child {
+    font-family: 'Special Elite', 'Courier New', monospace;
+    font-size: .98rem; letter-spacing: .04em; color: #4c3a22;
+}
+.tbe-modal-header i.fa-book-bookmark { color: var(--tbe-brass); margin-right: 6px; }
+.tbe-modal-close { cursor: pointer; color: #8a8170; padding: 0 4px; transition: .2s; }
+.tbe-modal-close:hover { color: var(--tbe-ribbon); transform: scale(1.15); }
+
+/* ---- ribbon tabs: one per person ---- */
+.tbe-tabs {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 7px 13px 0 30px;
+}
+.tbe-tab {
+    font-family: 'Special Elite', monospace; font-size: .72rem;
+    padding: 2px 10px 3px; cursor: pointer;
+    color: #f0e3cd; background: linear-gradient(180deg, #8a2b2d, var(--tbe-ribbon));
+    border-radius: 2px 2px 0 0;
+    box-shadow: inset 0 1px 0 rgba(255,220,200,.35);
+    opacity: .62; transition: opacity .15s, transform .15s;
+}
+.tbe-tab:hover { opacity: .85; }
+.tbe-tab.active { opacity: 1; transform: translateY(-2px); }
+
+.tbe-body {
+    padding: 9px 14px 14px 30px;
+    overflow-y: auto; flex: 1 1 auto;
+}
+.tbe-body::-webkit-scrollbar { width: 8px; }
+.tbe-body::-webkit-scrollbar-thumb { background: #c8b98f; border-radius: 4px; }
+
+/* ============================================================
+   A PAGE
+   ============================================================ */
+/* A title plate: the name struck into the page, a brass lozenge marking it, and a
+   double rule closing the block off from everything underneath. */
+.tbe-page-head {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    padding-bottom: 6px; margin-bottom: 9px;
+    border-bottom: 3px double rgba(122, 100, 58, .38);
+}
+.tbe-page-name {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Special Elite', monospace; font-size: 1.4rem; color: #33281a;
+    letter-spacing: .03em; line-height: 1.1;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .7), 0 -1px 0 rgba(90, 70, 40, .12);
+}
+.tbe-page-name::before {
+    content: ''; flex: 0 0 auto;
+    width: 7px; height: 7px; transform: rotate(45deg);
+    background: linear-gradient(135deg, #e0b06a, var(--tbe-brass));
+    box-shadow: 0 0 0 1px rgba(120, 100, 60, .3), inset 0 1px 0 rgba(255, 245, 220, .6);
+}
+
+.tbe-stamp {
+    font-family: 'Special Elite', monospace; font-size: .66rem; letter-spacing: .05em;
+    padding: 1px 8px; border: 1.2px solid currentColor; border-radius: 3px;
+    transform: rotate(-2.5deg); opacity: .9;
+}
+.tbe-stamp-cool { color: #4a5f6e; }
+.tbe-stamp-warm { color: #8a3a2e; }
+.tbe-stamp-hot  { color: var(--tbe-ribbon); }
+
+/* The archetype was brass-on-cream at .62rem and effectively invisible. Darker ink,
+   a touch larger, and a hairline running out to the edge so the line has a job. */
+.tbe-arch {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Special Elite', monospace; font-size: .68rem;
+    letter-spacing: .14em; text-transform: uppercase;
+    color: #7a5520; margin: 0 0 11px;
+}
+/* Label and value share one treatment, separated only by a middot — asked for
+   deliberately, so the line reads as a single stamped classification. */
+.tbe-arch-label { font-size: inherit; letter-spacing: inherit; color: inherit; }
+.tbe-arch-label::after { content: ' ·'; color: rgba(122, 85, 32, .55); padding: 0 2px; }
+.tbe-arch b { font-weight: 400; font-size: inherit; letter-spacing: inherit; }
+.tbe-arch::after {
+    content: ''; flex: 1 1 auto; height: 1px;
+    background: linear-gradient(90deg, rgba(169, 118, 47, .55), rgba(169, 118, 47, 0));
+}
+
+/* Who she is, as ruled entries rather than floating pills: pills left the right-hand
+   third of the panel empty, and empty space in a narrow column reads as unfinished. */
+/* Inline and wrapping: four stacked rows cost four rows of height, and height is the
+   scarce thing in a narrow panel. Same treatment, laid along the line instead. */
+.tbe-traits { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 12px; }
+.tbe-trait {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: 'Caveat', cursive; font-size: .84rem; line-height: 1.1;
+    padding: 1px 8px 2px;
+    color: #3f5443;
+    background: linear-gradient(90deg, rgba(120, 140, 110, .10), rgba(120, 140, 110, .03));
+    border: 1px solid rgba(110, 130, 100, .32);
+    border-left-width: 2px;
+    border-radius: 3px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.tbe-trait .tbe-seal-dot { width: 4px; height: 4px; }
+.tbe-trait .tbe-seal-dot { flex: 0 0 auto; margin: 0; }
+.tbe-trait-wait { color: #9c8e6c; border-style: dashed; font-style: italic; }
+
+/* memories keep the diary voice, but each gets a wax dot instead of a bare dash */
+.tbe-seal-dot {
+    display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    margin: 0 6px 1px 0; vertical-align: middle;
+    background: radial-gradient(circle at 35% 35%, #e0b06a, var(--tbe-brass));
+    box-shadow: 0 0 0 1px rgba(120,100,60,.25);
+}
+
+.tbe-conflict {
+    font-size: .86rem; color: #7c2a20;
+    background: rgba(140,45,35,.09);
+    border-left: 3px solid #8a3a2e;
+    padding: 6px 10px; margin-bottom: 12px;
+}
+.tbe-conflict i { margin-right: 5px; }
+
+.tbe-sect {
+    font-family: 'Special Elite', monospace; font-size: .66rem;
+    text-transform: uppercase; letter-spacing: .11em; color: #9c8e6c;
+    border-bottom: 1px solid rgba(120,100,60,.22);
+    margin: 10px 0 5px; padding-bottom: 2px;
+}
+
+/* ---- bars ---- */
+/* Two columns where there is room, one where there is not. The meters were the
+   tallest thing on the page and the widest thing doing the least work. */
+.tbe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    column-gap: 14px;
+}
+.tbe-row { display: flex; align-items: center; gap: 7px; margin: 3px 0; }
+.tbe-row-label {
+    /* wide enough for the longest label in either language — "Привязанность" —
+       so nothing is ever cut to an ellipsis */
+    flex: 0 0 82px; font-size: .7rem; line-height: 1.1; color: var(--tbe-ink-soft);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tbe-row-val {
+    flex: 0 0 17px; text-align: right;
+    font-family: 'PT Mono', monospace; font-size: .64rem; color: #9c8e6c;
+}
+.tbe-bar {
+    position: relative; flex: 1 1 auto; height: 6px;
+    background: rgba(90,75,45,.13);
+    border-radius: 1px;
+    box-shadow: inset 0 1px 2px rgba(80,65,40,.22);
+}
+.tbe-fill {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, #4e6350, #2f4034);
+    border-radius: 1px;
+    transition: width .35s ease;
+}
+/* THE SIGNATURE: a brass pin marking the ceiling her traits impose. */
+.tbe-cap {
+    position: absolute; top: -4px; bottom: -4px; width: 2px;
+    background: var(--tbe-brass);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.35);
+}
+.tbe-cap::after {
+    content: ''; position: absolute; top: -3px; left: -1.5px;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #e0b06a, var(--tbe-brass));
+}
+.tbe-bar.tbe-editable { cursor: crosshair; }
+.tbe-bar.tbe-editable:hover { box-shadow: inset 0 0 0 1px var(--tbe-ribbon); }
+
+/* ---- memory + log ---- */
+.tbe-events { font-family: 'Caveat', cursive; font-size: .88rem; line-height: 1.2; color: #5a5140; }
+.tbe-event { padding: 0; position: relative; text-indent: -11px; padding-left: 11px; }
+
+
+.tbe-log-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0; border-bottom: 1px dotted rgba(120,100,60,.25);
+}
+.tbe-log-act { flex: 1 1 auto; font-size: .86rem; }
+.tbe-log-roll { font-family: 'PT Mono', monospace; font-size: .74rem; color: #8b7d5f; }
+.tbe-seal {
+    font-family: 'Special Elite', monospace; font-size: .56rem; letter-spacing: .04em;
+    padding: 1px 6px; border-radius: 2px; color: #f4ead4; white-space: nowrap;
+}
+.tbe-seal-win       { background: #4e6350; }
+.tbe-seal-crit      { background: linear-gradient(135deg, #b98a34, #8a6320); }
+.tbe-seal-lose      { background: #7b7264; }
+.tbe-seal-crit-fail { background: linear-gradient(135deg, #8a3a2e, #5e211a); }
+
+/* ---- empty state: an invitation, not an apology ---- */
+.tbe-empty { text-align: center; padding: 34px 12px; color: var(--tbe-ink-soft); }
+.tbe-empty h4 { font-family: 'Special Elite', monospace; color: #6b5a3a; margin: 0 0 6px; }
+.tbe-empty p { font-family: 'Caveat', cursive; font-size: 1.15rem; margin: 0; }
+
+/* ---- GM strip ---- */
+.tbe-gm { margin-top: 16px; padding-top: 10px; border-top: 1px dashed #c8b98f; }
+.tbe-gm-hint { font-size: .76rem; color: #8b7d5f; margin-bottom: 8px; }
+.tbe-gm label { display: block; font-size: .84rem; margin-bottom: 8px; }
+.tbe-gm .text_pole { width: 100%; margin-top: 3px; }
+.tbe-gm-btns { display: flex; gap: 8px; }
+.tbe-btn {
+    flex: 1 1 auto; cursor: pointer; padding: 6px 10px;
+    font-family: 'Special Elite', monospace; font-size: .78rem;
+    color: #f0e6cf; background: linear-gradient(180deg, #4e6350, #2f4034);
+    border: 1px solid #1e2a22; border-radius: 3px;
+    transition: filter .15s, transform .1s;
+}
+.tbe-btn:hover { filter: brightness(1.12); }
+.tbe-btn:active { transform: translateY(1px); }
+.tbe-btn:focus-visible { outline: 2px solid var(--tbe-brass); outline-offset: 2px; }
+.tbe-btn.tbe-danger { background: linear-gradient(180deg, #8a2b2d, #5e211a); border-color: #401512; }
+
+/* ============================================================
+   NARROW SCREENS
+   ============================================================ */
+@media (max-width: 620px) {
+    .tbe-modal { left: 4vw; right: auto; width: 92vw; bottom: 76px; max-height: 74vh; }
+    .tbe-row-label { flex-basis: 88px; font-size: .8rem; }
+    .tbe-body { padding-left: 28px; }
+    .tbe-tabs { padding-left: 28px; }
+}
+
+/* ============================================================
+   SETTINGS PANEL — the "you will see nothing happen" warning
+   ============================================================ */
+.tbe-warn {
+    display: flex; gap: 8px; align-items: flex-start;
+    margin: 8px 0; padding: 8px 10px;
+    font-size: .84rem; line-height: 1.4;
+    color: #f0d9a8;
+    background: rgba(140, 90, 20, .18);
+    border-left: 3px solid var(--tbe-brass);
+    border-radius: 3px;
+}
+.tbe-warn i { color: var(--tbe-brass); margin-top: 2px; }
+
+/* ============================================================
+   MILESTONES + WHAT COMES NEXT
+   ============================================================ */
+.tbe-ms { display: flex; flex-wrap: wrap; gap: 5px; }
+.tbe-chip {
+    font-family: 'Special Elite', monospace; font-size: .66rem;
+    padding: 2px 8px; cursor: pointer; user-select: none;
+    color: #7b7264; border: 1px dashed #b6a67e; border-radius: 3px;
+    background: rgba(120, 100, 60, .05);
+    transition: filter .15s, transform .1s;
+}
+.tbe-chip:hover { filter: brightness(.94); }
+.tbe-chip:active { transform: translateY(1px); }
+/* earned reads as a pressed wax mark, not merely a coloured tag */
+.tbe-chip.done {
+    color: #f3ead4; border-style: solid; border-color: #5e211a;
+    background: linear-gradient(135deg, #8a2b2d, var(--tbe-ribbon));
+    box-shadow: inset 0 1px 0 rgba(255, 215, 195, .3);
+    transform: rotate(-1.5deg);
+}
+
+.tbe-next { font-size: .74rem; }
+.tbe-next-row {
+    display: flex; gap: 8px; align-items: baseline;
+    padding: 2px 0; border-bottom: 1px dotted rgba(120, 100, 60, .2);
+}
+.tbe-next-to { flex: 0 0 auto; font-family: 'Special Elite', monospace; color: #6b5a3a; }
+.tbe-next-need { flex: 1 1 auto; color: var(--tbe-ink-soft); font-size: .7rem; }
+.tbe-next-row.ready .tbe-next-need { color: #4e6350; }
+.tbe-next-row.ready .tbe-next-to { color: #4e6350; }
+
+.tbe-hint { font-size: .78rem; color: #8b7d5f; margin: 4px 0 8px; }
+
+
+/* a milestone whose stage is still out of reach reads as pencilled-in, not earned */
+.tbe-chip.far { opacity: .55; border-style: dotted; }
+.tbe-chip.far.done { opacity: .8; }
+
+/* a milestone the partner just put on the table, waiting for the player's answer */
+.tbe-chip.asked {
+    border-style: solid; border-color: var(--tbe-brass); color: #6b5320;
+    background: rgba(169, 118, 47, .14);
+    animation: tbe-ask 2s ease-in-out infinite;
+}
+@keyframes tbe-ask {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(169, 118, 47, .45); }
+    50%      { box-shadow: 0 0 0 5px rgba(169, 118, 47, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .tbe-chip.asked { animation: none; } }
+
+/* memories carry their colour in the margin mark, not in the text */
+.tbe-event.tbe-good .tbe-seal-dot { background: radial-gradient(circle at 35% 35%, #7f9d82, #4e6350); }
+.tbe-event.tbe-bad .tbe-seal-dot { background: radial-gradient(circle at 35% 35%, #b5675a, #8a3a2e); }
+
+/* gender sits on the card itself: a character living under another one is a story,
+   not a settings problem, and it can change halfway through */
+.tbe-gender { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; }
+.tbe-gender-label {
+    font-family: 'Special Elite', monospace; font-size: .62rem;
+    letter-spacing: .07em; text-transform: uppercase; color: #9c8e6c;
+}
+.tbe-gender-opt {
+    font-family: 'Alegreya', serif; font-size: .74rem;
+    padding: 0 8px; cursor: pointer;
+    color: #7b7264; background: transparent;
+    border: 1px solid #b6a67e; border-radius: 2px;
+    transition: background .15s, color .15s;
+}
+.tbe-gender-opt:hover { background: rgba(120,100,60,.08); }
+.tbe-gender-opt.on { color: #f3ead4; background: var(--tbe-cloth); border-color: #1e2a22; }
+.tbe-gender-opt:focus-visible { outline: 2px solid var(--tbe-brass); outline-offset: 2px; }
+
+/* borrowed-credentials note: informative, not a warning */
+.tbe-note {
+    display: flex; gap: 8px; align-items: flex-start;
+    margin: 8px 0; padding: 7px 10px;
+    font-size: .82rem; line-height: 1.4;
+    color: #cfe0cd;
+    background: rgba(78, 99, 80, .18);
+    border-left: 3px solid #4e6350;
+    border-radius: 3px;
+}
+.tbe-note i { color: #7f9d82; margin-top: 2px; }
+
+/* ============================================================
+   THE LAST ROLL — a die, not a spreadsheet row
+   ============================================================ */
+.tbe-check {
+    display: flex; align-items: center; gap: 11px;
+    padding: 7px 10px; margin: 2px 0 2px;
+    background: rgba(120, 100, 60, .07);
+    border-left: 3px solid #7b7264;
+    border-radius: 3px;
+}
+.tbe-check-win       { border-left-color: #4e6350; }
+.tbe-check-crit      { border-left-color: var(--tbe-brass); }
+.tbe-check-lose      { border-left-color: #7b7264; }
+.tbe-check-crit-fail { border-left-color: #8a3a2e; }
+
+/* a d20 face: hexagon, the number struck into it */
+.tbe-die {
+    position: relative; flex: 0 0 auto;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    background: linear-gradient(150deg, #5c7460, #2f4034 55%, #223028);
+    color: #f4ead4;
+    font-family: 'Special Elite', monospace; font-size: 1rem;
+    text-shadow: 0 1px 2px rgba(0,0,0,.5);
+    animation: tbe-sway 3.4s ease-in-out infinite;
+}
+.tbe-die::after {
+    /* the faint inner facet line, so it reads as a solid rather than a hexagon */
+    content: ''; position: absolute; inset: 6px;
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+    background: rgba(255, 240, 210, .07);
+}
+.tbe-check-crit .tbe-die      { background: linear-gradient(150deg, #d8a950, #a9762f 55%, #7a5320); }
+.tbe-check-lose .tbe-die      { background: linear-gradient(150deg, #8d8577, #6e675b 55%, #55503f); }
+.tbe-check-crit-fail .tbe-die { background: linear-gradient(150deg, #ad5140, #8a3a2e 55%, #5e211a); }
+.tbe-die b { position: relative; z-index: 1; }
+/* a natural 20 or a natural 1 has earned a little more presence */
+.tbe-die-nat { animation: tbe-sway 2.1s ease-in-out infinite, tbe-nat 2.1s ease-in-out infinite; }
+
+@keyframes tbe-sway {
+    0%, 100% { transform: rotate(-2.5deg); }
+    50%      { transform: rotate(2.5deg); }
+}
+@keyframes tbe-nat {
+    0%, 100% { filter: brightness(1); }
+    50%      { filter: brightness(1.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .tbe-die, .tbe-die-nat { animation: none; }
+}
+
+.tbe-check-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tbe-check-act {
+    font-family: 'Special Elite', monospace; font-size: .82rem; color: #4c3a22;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tbe-check-dc { font-family: 'PT Mono', monospace; font-size: .64rem; color: #9c8e6c; }
+.tbe-check-res {
+    font-family: 'Special Elite', monospace; font-size: .6rem;
+    letter-spacing: .05em; color: #7b7264;
+}
+.tbe-check-win .tbe-check-res       { color: #4e6350; }
+.tbe-check-crit .tbe-check-res      { color: #8a6320; }
+.tbe-check-crit-fail .tbe-check-res { color: #8a3a2e; }
+
+/* ============================================================
+   THE ROSTER — the "+" tab
+   Same paper, same ruled lines as a character page: it is part of the book,
+   not a dialog that happens to open on top of it.
+   ============================================================ */
+.tbe-tab.tbe-tab-add { padding: 2px 9px 3px; opacity: .55; }
+.tbe-tab.tbe-tab-add:hover { opacity: .9; }
+.tbe-tab.tbe-tab-add i { font-size: .7rem; }
+
+.tbe-roster { padding: 4px 2px 8px; }
+.tbe-roster h4 {
+    font-family: 'Special Elite', monospace; font-size: .95rem;
+    margin: 0 0 10px; color: var(--tbe-ink);
+    border-bottom: 1px solid rgba(90, 70, 45, .35); padding-bottom: 5px;
+}
+.tbe-pick-group { margin-bottom: 13px; }
+.tbe-pick-group h5 {
+    font-family: 'Special Elite', monospace; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .06em;
+    margin: 0 0 6px; color: rgba(60, 45, 28, .72);
+}
+.tbe-pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tbe-pick-scroll { max-height: 132px; overflow-y: auto; padding: 4px 2px; }
+
+.tbe-pick {
+    font-family: 'Special Elite', monospace; font-size: .78rem;
+    padding: 3px 10px 4px; cursor: pointer;
+    color: #f0e3cd; background: linear-gradient(180deg, #6d5636, var(--tbe-brass, #5a462d));
+    border: 1px solid rgba(40, 30, 18, .55); border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgba(255, 235, 200, .22);
+    transition: filter .15s, transform .1s;
+}
+.tbe-pick:hover { filter: brightness(1.15); }
+.tbe-pick:active { transform: translateY(1px); }
+.tbe-pick-have {
+    cursor: default; opacity: .5;
+    background: linear-gradient(180deg, #4e5a48, #364032);
+}
+.tbe-pick-have:hover { filter: none; }
+.tbe-pick-empty { font-size: .8rem; opacity: .6; font-style: italic; }
+
+.tbe-pick-group input.text_pole { width: 100%; margin-bottom: 6px; font-size: .82rem; }
+.tbe-roster-note {
+    font-size: .78rem; line-height: 1.45; margin: -4px 0 12px;
+    color: rgba(60, 45, 28, .78);
+}
+
+@media (max-width: 520px) {
+    .tbe-pick-scroll { max-height: 96px; }
+}
+
+/* ============================================================
+   MERGED UI — the block in the message and the drawer in the settings
+   ============================================================ */
+
+/* ---- tabs inside the message block ---- */
+.rpg-tabs {
+    display: flex; gap: 6px; margin: -3px 0 13px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.22);
+    padding-bottom: 0;
+}
+.rpg-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 13px 7px; cursor: pointer; user-select: none;
+    font-size: 0.76rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: #7b849e; background: transparent;
+    border: 1px solid transparent; border-bottom: none;
+    border-radius: 7px 7px 0 0; margin-bottom: -1px;
+    transition: color .18s, background .18s, border-color .18s;
+}
+.rpg-tab i { font-size: .82em; opacity: .85; }
+.rpg-tab:hover { color: #ccd6f6; background: rgba(139, 92, 246, 0.08); }
+.rpg-tab.active {
+    color: #ffd7dd; background: rgba(233, 69, 96, 0.10);
+    border-color: rgba(233, 69, 96, 0.35); border-bottom-color: transparent;
+    box-shadow: inset 0 2px 0 rgba(233, 69, 96, 0.75);
+}
+.rpg-pane { display: none; }
+.rpg-pane.active { display: block; animation: rpg-fadeIn .22s ease-out; }
+.rpg-bonds-note { font-size: .84rem; font-style: italic; color: #7b849e; padding: 12px 2px; }
+
+/* ---- tabs inside the settings drawer ---- */
+.rpg-settings-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.rpg-settings-tab {
+    flex: 1 1 0; text-align: center; cursor: pointer; user-select: none;
+    padding: 8px 6px; border-radius: 7px; font-size: .82rem; font-weight: 600;
+    color: #a8b2d1; background: rgba(139, 92, 246, 0.10);
+    border: 1px solid rgba(139, 92, 246, 0.30); transition: all .2s;
+}
+.rpg-settings-tab:hover { background: rgba(139, 92, 246, 0.22); color: #fff; }
+.rpg-settings-tab.active {
+    color: #fff; background: rgba(233, 69, 96, 0.20);
+    border-color: rgba(233, 69, 96, 0.60);
+}
+.rpg-settings-pane { display: none; }
+.rpg-settings-pane.active { display: block; }
+
+/* ============================================================
+   THE RELATIONSHIP PAGE, INLINE
+   Exactly the album's markup — every section, the brass ceiling pins, the die.
+   Only the skin changes: the paper book becomes the block's dark panel, and the
+   meters go two-up so the page stays short enough to sit inside a message.
+   ============================================================ */
+.rpg-pane-bonds .tbe-page { font-family: inherit; color: #ccd6f6; }
+
+/* --- name plate --- */
+.rpg-pane-bonds .tbe-page-head {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding-bottom: 8px; margin-bottom: 10px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.22);
+}
+.rpg-pane-bonds .tbe-page-name {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.45rem; line-height: 1.1; letter-spacing: .01em;
+    color: #ff5f6d; text-shadow: 0 0 18px rgba(233, 69, 96, .28);
+}
+.rpg-pane-bonds .tbe-page-name::before {
+    width: 6px; height: 6px;
+    background: linear-gradient(135deg, #ff8fa0, #e94560);
+    box-shadow: 0 0 8px rgba(233, 69, 96, .6);
+}
+.rpg-pane-bonds .tbe-stamp {
+    font-family: inherit; font-size: .68rem; font-weight: 600; letter-spacing: .04em;
+    padding: 3px 10px; border-radius: 20px; transform: none; opacity: 1;
+    border: 1px solid currentColor; background: rgba(255, 255, 255, .04);
+}
+.rpg-pane-bonds .tbe-stamp-cool { color: #7fa8d8; }
+.rpg-pane-bonds .tbe-stamp-warm { color: #ff8fa0; }
+.rpg-pane-bonds .tbe-stamp-hot  { color: #ff5f6d; }
+
+/* --- archetype line --- */
+.rpg-pane-bonds .tbe-arch {
+    font-family: inherit; font-size: .68rem; letter-spacing: .12em;
+    color: #8b93ad; margin: 0 0 10px;
+}
+.rpg-pane-bonds .tbe-arch b { color: #d9b3ff; font-weight: 600; }
+.rpg-pane-bonds .tbe-arch::after {
+    background: linear-gradient(90deg, rgba(139, 92, 246, .45), rgba(139, 92, 246, 0));
+}
+
+/* --- trait chips --- */
+.rpg-pane-bonds .tbe-traits { gap: 6px; margin: 0 0 11px; }
+.rpg-pane-bonds .tbe-trait {
+    font-family: inherit; font-size: .76rem; line-height: 1.35;
+    padding: 3px 10px 4px; border-radius: 20px;
+    color: #cbd3e8;
+    background: rgba(255, 255, 255, .035);
+    border: 1px solid rgba(139, 92, 246, .28); border-left-width: 1px;
+    box-shadow: none;
+}
+.rpg-pane-bonds .tbe-seal-dot {
+    background: radial-gradient(circle at 35% 35%, #ff8fa0, #e94560);
+    box-shadow: 0 0 0 1px rgba(233, 69, 96, .25);
+}
+.rpg-pane-bonds .tbe-trait-wait { color: #7b849e; border-style: dashed; }
+
+/* --- gender switch --- */
+.rpg-pane-bonds .tbe-gender { margin: 0 0 12px; gap: 7px; }
+.rpg-pane-bonds .tbe-gender-label {
+    font-family: inherit; font-size: .66rem; letter-spacing: .08em; color: #7b849e;
+}
+.rpg-pane-bonds .tbe-gender-opt {
+    font-family: inherit; font-size: .76rem; padding: 3px 12px; border-radius: 5px;
+    color: #a8b2d1; background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(139, 92, 246, .28);
+}
+.rpg-pane-bonds .tbe-gender-opt:hover { background: rgba(139, 92, 246, .16); color: #fff; }
+.rpg-pane-bonds .tbe-gender-opt.on {
+    color: #fff; background: rgba(233, 69, 96, .22); border-color: rgba(233, 69, 96, .65);
+}
+
+/* --- section rules --- */
+.rpg-pane-bonds .tbe-sect {
+    font-family: inherit; font-size: .66rem; font-weight: 700;
+    letter-spacing: .12em; color: #7b849e;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+    margin: 14px 0 8px; padding-bottom: 4px;
+}
+
+/* --- conflict banner --- */
+.rpg-pane-bonds .tbe-conflict {
+    font-size: .82rem; color: #ffb0a6; border-radius: 0 6px 6px 0;
+    background: rgba(233, 69, 96, .10); border-left: 3px solid #e94560;
+    padding: 7px 11px; margin-bottom: 12px;
+}
+
+/* --- meters, two-up --- */
+.rpg-pane-bonds .tbe-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); column-gap: 20px; }
+.rpg-pane-bonds .tbe-row { gap: 9px; margin: 5px 0; }
+.rpg-pane-bonds .tbe-row-label { flex: 0 0 96px; font-size: .78rem; color: #a8b2d1; font-weight: 600; }
+.rpg-pane-bonds .tbe-row-val { flex: 0 0 22px; font-family: inherit; font-size: .72rem; color: #8b93ad; }
+.rpg-pane-bonds .tbe-bar {
+    height: 6px; border-radius: 3px;
+    background: rgba(255, 255, 255, .05); box-shadow: none;
+}
+.rpg-pane-bonds .tbe-fill {
+    border-radius: 3px;
+    background: linear-gradient(90deg, #d81b60, #ff5f6d);
+}
+/* the pulse block reads as the volatile half of the page, so it carries the violet */
+.rpg-pane-bonds .tbe-bar[data-key^="pulse:"] .tbe-fill { background: linear-gradient(90deg, #8e24aa, #c56bff); }
+.rpg-pane-bonds .tbe-bar[data-key^="view:"] .tbe-fill  { background: linear-gradient(90deg, #00acc1, #56e0ef); }
+/* THE SIGNATURE, kept: the brass pin marking the ceiling her traits impose */
+.rpg-pane-bonds .tbe-cap {
+    background: #ffc46b; width: 2px; top: -3px; bottom: -3px;
+    box-shadow: 0 0 6px rgba(255, 196, 107, .8);
+}
+.rpg-pane-bonds .tbe-cap::after {
+    width: 5px; height: 5px; top: -3px;
+    background: radial-gradient(circle at 35% 35%, #ffe0a8, #ffc46b);
+}
+.rpg-pane-bonds .tbe-bar.tbe-editable:hover { box-shadow: inset 0 0 0 1px rgba(233, 69, 96, .8); }
+
+/* --- memories and events --- */
+.rpg-pane-bonds .tbe-events { font-family: inherit; font-size: .82rem; line-height: 1.55; color: #b6bfd6; }
+.rpg-pane-bonds .tbe-event { text-indent: -13px; padding-left: 13px; }
+.rpg-pane-bonds .tbe-event.tbe-good .tbe-seal-dot { background: radial-gradient(circle at 35% 35%, #9dffcf, #43a047); }
+.rpg-pane-bonds .tbe-event.tbe-bad  .tbe-seal-dot { background: radial-gradient(circle at 35% 35%, #ff9d90, #e53935); }
+
+/* --- milestone chips --- */
+.rpg-pane-bonds .tbe-ms { gap: 7px; }
+.rpg-pane-bonds .tbe-chip {
+    font-family: inherit; font-size: .74rem; padding: 5px 13px; border-radius: 6px;
+    color: #a8b2d1; background: rgba(255, 255, 255, .035);
+    border: 1px solid rgba(139, 92, 246, .30); border-style: solid;
+}
+.rpg-pane-bonds .tbe-chip:hover { filter: none; background: rgba(139, 92, 246, .18); color: #fff; }
+.rpg-pane-bonds .tbe-chip.done {
+    color: #fff; transform: none; box-shadow: none;
+    background: linear-gradient(180deg, #e94560, #b3243c); border-color: #ff5f6d;
+}
+.rpg-pane-bonds .tbe-chip.far { opacity: .5; border-style: dashed; }
+.rpg-pane-bonds .tbe-chip.far.done { opacity: .85; }
+.rpg-pane-bonds .tbe-chip.asked {
+    border-color: #ffc46b; color: #ffd79a; background: rgba(255, 196, 107, .12);
+}
+@keyframes tbe-ask { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 196, 107, .45); } 50% { box-shadow: 0 0 0 5px rgba(255, 196, 107, 0); } }
+
+/* --- what comes next --- */
+.rpg-pane-bonds .tbe-next { font-size: .78rem; }
+.rpg-pane-bonds .tbe-next-row { padding: 4px 0; border-bottom: 1px dotted rgba(255, 255, 255, .07); }
+.rpg-pane-bonds .tbe-next-to { font-family: inherit; font-weight: 600; color: #c9b6ff; }
+.rpg-pane-bonds .tbe-next-need { font-size: .74rem; color: #8b93ad; }
+.rpg-pane-bonds .tbe-next-row.ready .tbe-next-to,
+.rpg-pane-bonds .tbe-next-row.ready .tbe-next-need { color: #69f0ae; }
+
+/* --- the last roll --- */
+.rpg-pane-bonds .tbe-check {
+    gap: 13px; padding: 10px 12px; margin: 4px 0 2px; border-radius: 8px;
+    background: rgba(255, 255, 255, .035);
+    border: 1px solid rgba(139, 92, 246, .22); border-left: 3px solid #7b849e;
+}
+.rpg-pane-bonds .tbe-check-win       { border-left-color: #43a047; }
+.rpg-pane-bonds .tbe-check-crit      { border-left-color: #ffc46b; }
+.rpg-pane-bonds .tbe-check-lose      { border-left-color: #7b849e; }
+.rpg-pane-bonds .tbe-check-crit-fail { border-left-color: #e53935; }
+.rpg-pane-bonds .tbe-die {
+    width: 42px; height: 42px; font-family: inherit; font-size: 1.1rem; font-weight: 700;
+    background: linear-gradient(150deg, #3a2740, #241a2e 55%, #1a1322);
+    color: #ffd7dd; border: none;
+    box-shadow: 0 0 14px rgba(233, 69, 96, .25);
+}
+.rpg-pane-bonds .tbe-check-crit .tbe-die      { background: linear-gradient(150deg, #ffd79a, #c99236 55%, #8a6320); color: #2a1c06; }
+.rpg-pane-bonds .tbe-check-win .tbe-die       { background: linear-gradient(150deg, #2f5a3d, #1e3a28 55%, #16281d); }
+.rpg-pane-bonds .tbe-check-crit-fail .tbe-die { background: linear-gradient(150deg, #b3413a, #7a2420 55%, #4a1512); }
+.rpg-pane-bonds .tbe-check-act { font-family: inherit; font-size: .92rem; font-weight: 600; color: #ccd6f6; }
+.rpg-pane-bonds .tbe-check-dc  { font-family: inherit; font-size: .7rem; color: #8b93ad; }
+.rpg-pane-bonds .tbe-check-res { font-family: inherit; font-size: .68rem; font-weight: 700; letter-spacing: .06em; color: #8b93ad; }
+.rpg-pane-bonds .tbe-check-win .tbe-check-res       { color: #69f0ae; }
+.rpg-pane-bonds .tbe-check-crit .tbe-check-res      { color: #ffc46b; }
+.rpg-pane-bonds .tbe-check-crit-fail .tbe-check-res { color: #ff6b6b; }
+
+/* --- the older rolls, GM mode --- */
+.rpg-pane-bonds .tbe-log-row { border-bottom: 1px dotted rgba(255, 255, 255, .07); }
+.rpg-pane-bonds .tbe-log-act { font-size: .82rem; color: #b6bfd6; }
+.rpg-pane-bonds .tbe-log-roll { font-family: inherit; font-size: .74rem; color: #8b93ad; }
+.rpg-pane-bonds .tbe-seal { font-family: inherit; font-size: .6rem; font-weight: 700; border-radius: 4px; }
+.rpg-pane-bonds .tbe-seal-win       { background: #2f5a3d; }
+.rpg-pane-bonds .tbe-seal-crit      { background: linear-gradient(135deg, #c99236, #8a6320); }
+.rpg-pane-bonds .tbe-seal-lose      { background: #4a5169; }
+.rpg-pane-bonds .tbe-seal-crit-fail { background: linear-gradient(135deg, #b3413a, #7a2420); }
+
+/* --- GM strip --- */
+.rpg-pane-bonds .tbe-gm { border-top: 1px solid rgba(255, 255, 255, .07); }
+.rpg-pane-bonds .tbe-gm-hint { font-size: .76rem; color: #7b849e; }
+.rpg-pane-bonds .tbe-gm label { font-size: .82rem; color: #a8b2d1; }
+.rpg-pane-bonds .tbe-btn {
+    font-family: inherit; font-size: .8rem; border-radius: 6px;
+    color: #ccd6f6; background: rgba(139, 92, 246, .18);
+    border: 1px solid rgba(139, 92, 246, .45);
+}
+.rpg-pane-bonds .tbe-btn:hover { background: rgba(139, 92, 246, .34); color: #fff; }
+.rpg-pane-bonds .tbe-btn.tbe-danger {
+    background: rgba(233, 69, 96, .16); border-color: rgba(233, 69, 96, .55); color: #ffb8c2;
+}
+.rpg-pane-bonds .tbe-btn.tbe-danger:hover { background: rgba(233, 69, 96, .32); color: #fff; }
+
+/* --- narrow screens: one column, the labels get their width back --- */
+@media (max-width: 620px) {
+    .rpg-pane-bonds .tbe-grid { grid-template-columns: 1fr; }
+    .rpg-pane-bonds .tbe-row-label { flex-basis: 104px; }
+    .rpg-tab { padding: 6px 9px 7px; font-size: .72rem; }
+}

@@ -1,9 +1,9 @@
 {
-    "display_name": "RPG Status Bar",
+    "display_name": "RPG Status Bar + Bonds",
     "loading_order": 105,
     "js": "index.js",
     "css": "style.css",
     "author": "Arkana8",
-    "version": "1.5.1",
+    "version": "2.0.0",
     "homePage": "https://github.com/tavern-rpg-suite/RPG-Status-Bar"
 }
