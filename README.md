@@ -1,30 +1,53 @@
 # RPG Status Bar
 
-A SillyTavern extension that shows an **inline status bar under each character message** — health, mana, stamina, mood, trust, arousal… whatever stats you define. An AI Game Master reads the recent story and updates the values periodically, with animated bars, trend arrows, critical-state warnings, and a one-line summary that can be injected back into the prompt so the model stays aware of the character's condition.
+A SillyTavern extension that gives your characters a **living status bar** — health, mana, stamina, mood, trust, attraction, relationships, and more.
+
+The status is updated from the story and shown directly under character messages. Different systems can work independently or together, so you can use RPG stats, relationship tracking, or both.
 
 **Version 1.5.1**
 
----
-
 ## ✨ Features
 
+### 📊 RPG Stats
+
 - 📊 **Inline stat bars** under character messages, in a smooth collapsible accordion.
-- 🎯 **Any stats you want** — per-character stat sets with custom names, colors and AI descriptions.
-- 🧙 **Presets** — Fantasy (health/mana/stamina), Survival (satiety/hydration/warmth), Romance (trust/attraction/mood).
-- ✨ **AI stat designer** — one click and the AI reads the character card and invents 4 custom stats (name, color, description, starting value) that fit that character.
-- 🤖 **AI-updated** — a strict "GM calculator" adjusts values from the last messages every N turns (or on demand via **Recalculate**).
-- 🎨 **Color by value** — bars go green → gold → red as a value drops; plus ▲/▼ trend arrows and a pulsing **critical** state.
-- 🧠 **Context injection** — a short state summary is fed into the system prompt so the model plays the condition.
-- 🗂️ **Per-character or per-chat** — keep one persistent status per character, or give every chat its own independent state.
-- 💾 **Export / import** per character, and a **Reset character** button.
-- 🌍 **Bilingual UI (RU / EN)** — one-click switch; the AI summary language follows it too.
-- 👥 **Group chats** — each speaking character gets and shows its own status.
+- 🎯 **Custom stats** — create any stats you want with custom names, colors and descriptions.
+- 🧙 **Presets** — Fantasy, Survival, Romance, or your own.
+- ✨ **AI stat designer** — reads the character card and creates four fitting stats automatically.
+- 🤖 **AI-updated** — a GM-style model updates values from the recent story every N messages or on demand.
+- 🎨 **Trends & critical states** — animated bars, trend arrows and critical-state warnings.
+- 🧠 **Context injection** — a short state summary can be injected into the prompt so the model knows the character's current condition.
+- 🗂️ **Per-character or per-chat** — keep persistent stats or give each chat its own state.
+- 👥 **Group chats** — every speaking character gets their own status.
+- 💾 **Export / import** character profiles.
+
+### 💞 Tavern Bonds
+
+A relationship system that makes characters **remember how they feel about you and act accordingly**.
+
+- 🎲 **Dice-based interactions** — flirting, apologies, boundary-pushing and other actions are resolved before the model writes, based on the character's personality and your current relationship.
+- 🧠 **Personality matters** — each character gets an archetype and eight fixed personality traits. Their personality doesn't magically change just because the story does.
+- 📈 **Five long-term feelings + three short-term moods** — trust, comfort, attraction, respect, affection, plus mood, arousal and excitement.
+- 🚪 **Relationship stages must be earned** — Stranger → Acquaintance → Friend → Close Friend → Crush → Dating → Partner → Wife/Husband.
+- 💌 **Character initiative** — characters can take the first step themselves: start conversations, flirt, invite you somewhere, give gifts, ask you out, or otherwise act on their feelings without waiting for the player to initiate everything.
+- 🌹 **Courtship** — relationships can develop through gradual mutual attention and romantic initiative instead of jumping straight from friendship to dating.
+- 💔 **Consequences that persist** — serious failures can cause lasting offence and make future interactions harder until the relationship is properly repaired.
+- 🗒️ **Negative memories** — the worst thing you've done can remain attached to the relationship and influence future interactions.
+- 🧱 **Relationship ceilings** — some characters simply won't reach certain stages depending on their personality.
+
+### 🧠 Built for LLMs
+
+The relationship system does **not** dump tables of numbers into the prompt.
+
+The extension handles the calculations itself and gives the model a short description of what is already true — for example, that someone is wary, comfortable, attracted, or upset.
+
+The model doesn't decide whether you succeeded. **The state is calculated first, then the model writes the consequences.**
 
 ## 📦 Install
 
 Copy the `RPG Status Bar` folder into:
 
-```
+```text
 SillyTavern/data/<user>/extensions/
 ```
 
@@ -33,29 +56,32 @@ Reload SillyTavern and enable it in **Extensions → RPG Status Bar**.
 ## ⚙️ Setup
 
 1. Enable **RPG Status Bar**.
-2. Pick **Interface language** (English / Русский).
-3. Fill in **API Settings** — URL / API key / model (OpenAI-compatible; default `google/gemma-4-31b-it`). A cheap, fast model at low temperature works well here.
-4. Choose **how often** to update (every N messages) and whether to **inject** the summary.
-5. Under **Stat configuration**, pick a preset or build your own stats per character.
+2. Choose the interface language.
+3. Configure the API URL, key and model. Any OpenAI-compatible endpoint should work.
+4. Choose how often stats should update and whether to inject their summary.
+5. Configure your stats or use the AI stat designer.
+6. Enable and configure **Tavern Bonds** if you want relationship tracking.
 
-## 📊 Stats & how updates work
+## 📊 How stat updates work
 
-Each stat has a name, a color, and a description that tells the AI what moves it. Every N character messages (or when you press **Recalculate** on a bar) the extension sends the last few messages to the model, which returns new 0–100 values and a one-sentence summary. Snapshots are stored per message in the chat, so scrolling back shows the status at that point.
+Every N character messages, the extension sends the recent story to the configured model. It returns updated 0–100 values and a short summary. Snapshots are stored per message, so scrolling back through the chat shows the state at that point.
 
-**Generate 4 stats (AI)** reads the selected character's card (description / personality / scenario) and designs four fitting stats automatically — a great starting point you can then tweak. It replaces the current stats and uses your configured model and interface language.
-
-**Color by value** is best for "higher = better" stats (health, stamina): the bar shifts green/gold/red with the number. Leave it off for stats where a fixed semantic color is clearer.
+You can choose how many recent messages the extension reads. It does not need to scan the entire conversation.
 
 ## 🗂️ Per-character vs per-chat
 
-By default a character's status is **global** — the same Health follows them into every chat. Turn on **"Separate status for each chat"** to give every chat its own independent values (a new chat starts fresh instead of continuing old HP). The stat *setup* is seeded from the character's global template, so you don't reconfigure stats each time.
+By default, a character's status is global and follows them between chats. Enable **Separate status for each chat** to give every chat its own independent state.
 
-**Reset character** restores the current character's values to a fresh baseline (per-chat: reseeds from the template; global: full values + cleared summary).
+Resetting a character restores their status to a fresh baseline.
 
 ## 💾 Export / import
 
-In **Stat configuration**, pick a character and use **Export current character** to save a `.json` with the full profile (stat setup + current values + summary). **Import profile** applies a file onto the character selected in the dropdown. Files with multiple profiles are merged. Handy for moving setups between machines or sharing a character's stat sheet.
+Export a character's full profile as JSON, including stat setup, values and summary. Profiles can be imported or moved between machines.
 
 ## 👥 Group chats
 
-Fully supported: the status is computed and rendered **per speaking character**, the editor lets you pick any group member, and the injected summary lists everyone present. Members are matched by avatar, index, or name.
+Fully supported. Each speaking character gets their own status, and the relationship state can track the members independently.
+
+## 🌍 Languages
+
+Bilingual UI: **English / Русский**. AI-generated summaries follow the selected interface language.
